@@ -6,11 +6,11 @@
 ; Uitgebreid door Sterckx Jens op 07/12/15 (Aanpassingen & Helderheid door POT meter functie)
 ;
 ; Aansluitingen:
-; P5_data.0=clk
-; P5_data.1=cs
-; P5_data.2=din
+; P5_data.0=clk (bruine draad)
+; P5_data.1=cs  (grijze draad)
+; P5_data.2=din (witte draad)
 ;
-; Nodige geheugenplaatsen: DISP_STATUS
+; Nodige geheugenplaatsen: DISP_STATUS (BIT ADRESSABLE!)
 
 ; initmax zet de max klaar voor gebruik. Dit doen we door 16 bit patronen op te sturen
 initmax:	
@@ -27,6 +27,8 @@ initmax:
 		mov	a,#0Bh			;scan limit
 		mov	b,#07h			;scan all
 		lcall	outmax
+
+        mov DISP_STATUS,#00h
 	ret
 
 ; initp5 zet de lijnen van p5 als output. p5 is NIET bit adresseerbaar!!!!!!
@@ -56,6 +58,8 @@ enableMAXdecode:
 		mov	a,#09h			;decode mode
 		mov	b,#FFh			;decode all digits
 		lcall outmax
+        
+        setb DISP_STATUS.1
 
         pop b
         pop acc
@@ -67,6 +71,8 @@ disableMAXdecode:
 		mov	a,#09h			;decode mode
 		mov	b,#00h			;decode all digits
 		lcall outmax
+
+        clr DISP_STATUS.1
 
         pop b
         pop acc
@@ -91,6 +97,8 @@ enableMAXdisplaytest:
     	mov	a,#0Fh			;Displaytest mode
 		mov	b,#01h			;aan
 		lcall outmax
+
+        setb DISP_STATUS.0
     
         pop b
         pop acc
@@ -108,6 +116,8 @@ disableMAXdisplaytest:
 		mov	b,#01h			;normal mode
 		lcall outmax		;verzenden
     
+        clr DISP_STATUS.0
+
         pop b
         pop acc
 ret
@@ -255,6 +265,9 @@ ret
 ; gebruikt:
 ; niets
 outmax:	
+        jb DISP_STATUS.7, outmax_ret ;Zorgt ervoor dat er niets (bvb met interrupt) 2 keer kan gezonden / verzending onderbroken worden.
+        setb DISP_STATUS.7       ;outmax locken
+
         push acc			     ;registers bewaren op stack
 		push b
 		anl	p5_data,#11111100b	 ;cs en clk laag maken
@@ -294,4 +307,7 @@ outmax_verder1:
 		orl	p5_data,#11111110b	 ;eerst cs hoog, klok mag laag blijven (moet volgens datasheet)
 		pop	b			         ;regs herstellen
 		pop	acc			         ;klaar
+
+        clr DISP_STATUS.7 ;Lock vrijmaken
+outmax_ret:
     ret
