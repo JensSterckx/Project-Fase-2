@@ -152,7 +152,6 @@ ret
 ; input:
 ; niets
 ; 
-;
 ; output:
 ; niets
 ;
@@ -169,31 +168,70 @@ clearmax:
 	lcall outmax
 
     mov	a,#02
-    mov b,#00h
 	lcall outmax
 
     mov	a,#03
-    mov b,#00h
 	lcall outmax
 
     mov	a,#04
-    mov b,#00h
 	lcall outmax
 
     mov	a,#05
-    mov b,#00h
 	lcall outmax
 
     mov	a,#06
-    mov b,#00h
 	lcall outmax
 
     mov	a,#07
-    mov b,#00h
 	lcall outmax
 
     mov	a,#08
-    mov b,#00h
+	lcall outmax
+
+    pop b
+    pop acc
+ret
+
+; fillmax zal elke digit laten oplichten (NIET IN TEST MODE) 
+; ATTENTIE: DIT ZAL DE disableMAXdecode uitvoeren (Decode zal op einde van deze routine uit staan)
+;
+; input:
+; niets
+; 
+; output:
+; niets
+;
+; gebruikt:
+; niets
+fillmax:
+    push acc
+    push b
+
+    lcall disableMAXdecode
+
+   	mov	a,#01
+    mov b,#FFh
+	lcall outmax
+
+    mov	a,#02
+	lcall outmax
+
+    mov	a,#03
+	lcall outmax
+
+    mov	a,#04
+	lcall outmax
+
+    mov	a,#05
+	lcall outmax
+
+    mov	a,#06
+	lcall outmax
+
+    mov	a,#07
+	lcall outmax
+
+    mov	a,#08
 	lcall outmax
 
     pop b
