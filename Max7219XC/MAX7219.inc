@@ -1,3 +1,16 @@
+
+;GEHEUGEN PLAATSEN RESERVEREN
+DISP_STATUS		equ	20h     ;.x =   true(1) / false(0)
+                            ;.0 = Display Test / Normal OP
+                            ;.1 = Decode ON / OFF    
+
+                            ;.7 = Transmission lock ON / OFF (Deze bit wordt gezet als er iets verzonden wordt door de main (interrupts moeten hier dus overgeslaan worden)
+DISP_CHIPS      equ 21h     ;Aantal MAX chips in daisy chain
+
+DISP_STORE1     equ 22h
+DISP_STORE2     equ 23h
+
+
 ; Dit programma test de MAX7219 (met een 7-segment uitlezing).
 ; Het programma zal eerst de module initialiseren. Daarna komt er een teller op die
 ; op de 8 cijfers een getal laat zien dat 1 verschilt.
@@ -7,10 +20,11 @@
 ;
 ; Aansluitingen:
 ; P5_data.0=clk (bruine draad)
-; P5_data.1=cs  (grijze draad)
+; P5_data.1=cs  (gele draad)
 ; P5_data.2=din (witte draad)
 ;
-; Nodige geheugenplaatsen: DISP_STATUS (BIT ADRESSABLE!)
+; Nodige geheugenplaatsen:  DISP_STATUS (BIT ADRESSABLE!)
+;                           DISP_CHIP
 
 ; initmax zet de max klaar voor gebruik. Dit doen we door 16 bit patronen op te sturen
 initmax:	
@@ -29,6 +43,7 @@ initmax:
 		lcall	outmax
 
         mov DISP_STATUS,#00h
+        mov DISP_CHIPS,#02h
 	ret
 
 ; initp5 zet de lijnen van p5 als output. p5 is NIET bit adresseerbaar!!!!!!
@@ -146,7 +161,7 @@ maxpotmeter:
         mov r2,#64          ;1024 / 64 == 0 - F (Goed voor brightness van MAX)
         lcall div16
 
-		mov	a,#0Ah			;Intensity
+		mov	a,#FAh			;Intensity
 		mov	b,r2			;Potmeter intensiteit
 		lcall outmax
 
@@ -173,29 +188,29 @@ clearmax:
 
     lcall enableMAXdecode
 
-   	mov	a,#01
+   	mov	a,#01h
     mov b,#00h
 	lcall outmax
 
-    mov	a,#02
+    mov	a,#02h
 	lcall outmax
 
-    mov	a,#03
+    mov	a,#03h
 	lcall outmax
 
-    mov	a,#04
+    mov	a,#04h
 	lcall outmax
 
-    mov	a,#05
+    mov	a,#05h
 	lcall outmax
 
-    mov	a,#06
+    mov	a,#06h
 	lcall outmax
 
-    mov	a,#07
+    mov	a,#07h
 	lcall outmax
 
-    mov	a,#08
+    mov	a,#08h
 	lcall outmax
 
     pop b
@@ -219,29 +234,29 @@ fillmax:
 
     lcall disableMAXdecode
 
-   	mov	a,#01
+   	mov	a,#01h
     mov b,#FFh
 	lcall outmax
 
-    mov	a,#02
+    mov	a,#02h
 	lcall outmax
 
-    mov	a,#03
+    mov	a,#03h
 	lcall outmax
 
-    mov	a,#04
+    mov	a,#04h
 	lcall outmax
 
-    mov	a,#05
+    mov	a,#05h
 	lcall outmax
 
-    mov	a,#06
+    mov	a,#06h
 	lcall outmax
 
-    mov	a,#07
+    mov	a,#07h
 	lcall outmax
 
-    mov	a,#08
+    mov	a,#08h
 	lcall outmax
 
     pop b
@@ -252,7 +267,8 @@ ret
 ; outmax stuurt 16 bit naar de max. 
 ;
 ; input:
-; a register = adres
+; a register = adres(LSB) + indicatie voor daisy chain(MSB F = elke chip). 
+;                       (de MSB worden niet gebruikt door de MAX, we gaan deze gebruiken voor de index aan te geven welke chip we nodig hebben (Vult derest op met 00 00 NoOp) 0 = Dichste MAX f is laatste chip in rij.
 ; b register = data
 ;
 ; Eerst worden de 8 bits van a naar buiten gestuurd (msb eerst), daarna die van b (msb eerst)
@@ -264,10 +280,70 @@ ret
 ;
 ; gebruikt:
 ; niets
-outmax:	
-        jb DISP_STATUS.7, outmax_ret ;Zorgt ervoor dat er niets (bvb met interrupt) 2 keer kan gezonden / verzending onderbroken worden.
+outmax:
+        jb DISP_STATUS.7, outmax_dret ;Zorgt ervoor dat er niets (bvb met interrupt) 2 keer kan gezonden / verzending onderbroken worden.
         setb DISP_STATUS.7       ;outmax locken
 
+
+
+
+
+        ;Chip uit Adres halen
+        swap a                   ;MSB->LSB
+        mov DISP_STORE1,a
+        anl DISP_STORE1,#0Fh       ;Enkel de LSB behouden
+        swap a                   ;TERUG GOED ZETTEN
+    
+
+        lcall outmax_start       ;Werkelijke data versturen
+
+        mov p3_data, DISP_STORE1
+
+
+        ;Eerst de achterliggende dummy chips NoOppen
+
+        push acc
+        mov a,DISP_CHIPS
+        ljmp outmax_dummyb41
+outmax_dummyb4:
+        push acc
+        mov a,#00h               ;Adres 00h = NoOp
+        mov b,#00h
+        lcall outmax_start
+        pop acc
+        dec a
+outmax_dummyb41:
+        cjne a, DISP_STORE1, outmax_dummyb4
+
+        ;Werkelijke data doorsturen
+        pop acc
+        lcall outmax_start
+
+;dan de voorgaande dummy chips NoOppen
+        ljmp outmax_dummyafter1
+        mov DISP_STORE2,a
+outmax_dummyafter:
+        ;push acc
+        mov a,#00h               ;Adres 00h = NoOp
+        mov b,#00h
+        lcall outmax_start
+        ;pop acc
+outmax_dummyafter1:
+        djnz DISP_STORE2, outmax_dummyafter
+
+
+
+        clr DISP_STATUS.7 ;Lock vrijmaken
+outmax_dret:
+    ret
+
+
+
+
+
+
+
+outmax_start: ;De start voor het zenden van adres en data voor 1 chip
         push acc			     ;registers bewaren op stack
 		push b
 		anl	p5_data,#11111100b	 ;cs en clk laag maken
@@ -304,10 +380,10 @@ outmax_verder1:
 		anl	p5_data,#11111100b	 ;klok terug laag, cs blijft laag
 	djnz b,outmax_lus2
 
-		orl	p5_data,#11111110b	 ;eerst cs hoog, klok mag laag blijven (moet volgens datasheet)
+	    orl	p5_data,#11111110b	 ;eerst cs hoog, klok mag laag blijven (moet volgens datasheet)
 		pop	b			         ;regs herstellen
 		pop	acc			         ;klaar
 
-        clr DISP_STATUS.7 ;Lock vrijmaken
+        ;clr DISP_STATUS.7 ;Lock vrijmaken
 outmax_ret:
     ret

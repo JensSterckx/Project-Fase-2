@@ -1,12 +1,3 @@
-
-;GEHEUGEN PLAATSEN RESERVEREN
-DISP_STATUS		equ	20h     ;.x =   true(1) / false(0)
-                            ;.0 = Display Test / Normal OP
-                            ;.1 = Decode ON / OFF    
-
-                            ;.7 = Transmission lock ON / OFF (Deze bit wordt gezet als er iets verzonden wordt door de main (interrupts moeten hier dus overgeslaan worden)
-
-
 ;START PROGRAMMA
 org	0000h			;start adres hoofd programma
 ljmp initmain
@@ -16,11 +7,13 @@ ljmp interrupt  ;Label voor de interrupt code
 
 
 initmain:
-		mov	sp,#7fh		    ;stackpointer klaar zetten
+		mov	sp,#7Fh		    ;stackpointer klaar zetten
 
 	    lcall initlcd		;lcd klaar zetten
-		lcall lcdlighton	;achtergrondverlichting inschakelen
+        lcall setlcd
+		;lcall lcdlighton	;achtergrondverlichting inschakelen
         lcall initftoetsen
+        lcall initleds
 
         lcall initadc
         lcall initsio       ;serieele input en output 9600 baud
@@ -48,44 +41,78 @@ main:
         ;We gebruiken de MSB van het ADRES (Dat niet gebruikt wordt door de MAX voor onze eigen opcodes)
 
 
-        ;lcall sioinchar ;Eerst het adres inlezen
-        ;push acc        ;Tijdelijk storen
-        ;lcall sioinchar ;Data inladen
-        ;mov b,a         ;Storen in b
-        ;pop acc         ;Adres restoren
+        lcall sioinchar ;Eerst het adres inlezen
+        push acc        ;Tijdelijk storen
 
-        ;lcall outmax
+        lcall sioinchar ;Data inladen
+        mov b,a         ;Storen in b
+        pop acc         ;Adres restoren
+        lcall outmax
+
+        ;OUTPUT DEBUG
+        push acc
+        mov	a,#c3h
+		lcall lcdoutchar
+        pop acc
+        lcall lcdoutbyte
+
+        push acc
+        mov	a,#97h
+		lcall lcdoutchar
+        mov a,b
+        lcall lcdoutbyte
+        pop acc
         
-
 ljmp main
 
 printmax:
-        mov a,#04
+        mov a,#04h
         mov b,#01111101b
         lcall outmax
         
-        mov a,#03
+        mov a,#13h
         mov b,#01001111b
         lcall outmax
 
-        mov a,#02
+        mov a,#02h
         mov b,#00010101b
         lcall outmax
 
-        mov a,#01
+        mov a,#11h
         mov b,#11011011b
         lcall outmax
 ret
 
 
 ; printlcd drukt de teller af op het lcd scherm
-printlcd:
+setlcd:
+    ;ADRESSEN
+    ; 80 81 82 83 84 85 86 87 88 89 8a 8b 8c 8d 8e 8f 90 91 92 93
+    ; c0 c1 c2 c3 c4 c5 c6 c7 c8 c9 ca cb cc cd ce cf d0 d1 d2 d3
+    ; 94 95 96 97 98 99 9a 9b 9c 9d 9e 9f a0 a1 a2 a3 a4 a5 a6 a7
+    ; d4 d5 d6 d7 d8 d9 da db dc dd de df e0 e1 e2 e3 e4 e5 e6 e7
+    
+        mov	a,#c0h
+		lcall lcdoutchar
+        mov a,#'A'
+        lcall lcdoutchar
+        mov a,#':'
+        lcall lcdoutchar
+        mov a,#' '
+        lcall lcdoutchar
+        mov a,#'N'
+        lcall lcdoutchar
 
-	    ;inc b
-        ;mov	a,#0fh			;cursor positionneren
-		;lcall lcdoutchar        
-		;mov	a,b		;teller afdrukken
-		;lcall lcdoutbyte               
+        mov	a,#94h
+		lcall lcdoutchar  
+        mov a,#'D'
+        lcall lcdoutchar
+        mov a,#':'
+        lcall lcdoutchar    
+        mov a,#' '
+        lcall lcdoutchar
+        mov a,#'N'
+        lcall lcdoutchar
 ret
 
 ;Interrupt klaarzetten voor acties uit te voeren zonder te hoeven wachten op een SIO input.
