@@ -12,11 +12,8 @@
 ; gebruikt:
 ; niets
 getADC:
-    lcall adcpotmeter ;HERNOEM NAAR DE ADC INGANG DA GE WILT
+    lcall adcpotmeter
 	;lcall adclm335
-    
-    ;mov ADC_H, a
-    ;mov ADC_L, b
 
     push acc
 
@@ -27,9 +24,6 @@ getADC:
     rl a
 	
     mov b,a
-    ;mov ADC_L,b
-    ;mov a,ADC_H
-    
     pop acc
     push acc
 
@@ -46,10 +40,4 @@ getADC:
 
     rl a
     rl a
-    
-    ;mov ADC_H,a
-	;mov ADC_L,b
-
-
-
 ret
